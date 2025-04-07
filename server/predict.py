@@ -1,11 +1,11 @@
-# python/predict.py
+# /predict.py
 import sys
 import json
 import pickle
 import numpy as np
 
 def load_model():
-    with open('python/best_model.pkl', 'rb') as f:
+    with open('best_model.pkl', 'rb') as f:
         model = pickle.load(f)
     return model
 

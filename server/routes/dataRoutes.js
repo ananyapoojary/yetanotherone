@@ -19,35 +19,26 @@ router.get('/fetch-data', async (req, res) => {
     console.log('Elevation:', elevation);
 
     // 2. Fetch Temperature and Rainfall (DAILY)
-    const weatherDailyResp = await axios.get('https://power.larc.nasa.gov/api/temporal/daily/point', {
-      params: {
-        parameters: 'T2M,PRECTOTCORR',
-        community: 'RE',
-        longitude: lon,
-        latitude: lat,
-        start: '20200101',
-        end: '20200131',
-        format: 'JSON',
-      },
-    });
+    // 2. Fetch Temperature, Rainfall, and Humidity (DAILY)
+const weatherDailyResp = await axios.get('https://power.larc.nasa.gov/api/temporal/daily/point', {
+    params: {
+      parameters: 'T2M,PRECTOTCORR,RH2M',
+      community: 'RE',
+      longitude: lon,
+      latitude: lat,
+      start: '20200101',
+      end: '20200131',
+      format: 'JSON',
+    },
+  });
+  
+  const weatherDaily = weatherDailyResp.data.properties.parameter;
+  const temperature = weatherDaily.T2M ? weatherDaily.T2M[Object.keys(weatherDaily.T2M)[0]] : null;
+  const rainfall = weatherDaily.PRECTOTCORR ? weatherDaily.PRECTOTCORR[Object.keys(weatherDaily.PRECTOTCORR)[0]] : null;
+  const humidity = weatherDaily.RH2M ? weatherDaily.RH2M[Object.keys(weatherDaily.RH2M)[0]] : null;
+  
 
-    const weatherDaily = weatherDailyResp.data.properties.parameter;
-    const temperature = weatherDaily.T2M ? weatherDaily.T2M[Object.keys(weatherDaily.T2M)[0]] : null;
-    const rainfall = weatherDaily.PRECTOTCORR ? weatherDaily.PRECTOTCORR[Object.keys(weatherDaily.PRECTOTCORR)[0]] : null;
-
-    // 3. Fetch Humidity (MONTHLY)
-    const weatherMonthlyResp = await axios.get('https://power.larc.nasa.gov/api/temporal/climatology/point', {
-      params: {
-        parameters: 'RH2M', // Note: monthly climatology uses RH2M, not RH
-        community: 'RE',
-        longitude: lon,
-        latitude: lat,
-        format: 'JSON',
-      },
-    });
-
-    const rhData = weatherMonthlyResp.data.properties.parameter.RH2M;
-    const humidity = rhData && rhData['1'] ? rhData['1'] : null; // January
+    
 
     console.log('Weather:', { temperature, humidity, rainfall });
 
@@ -86,7 +77,7 @@ router.get('/fetch-data', async (req, res) => {
 
     // 5. Call Python prediction script
     const pyProcess = spawn('python3', [ // Use 'python3' instead of 'python' to avoid ENOENT
-      './python/predict.py',
+      './predict.py',
       temperature,
       humidity,
       soilData.phh2o,
