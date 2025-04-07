@@ -1,10 +1,8 @@
-// server/routes/dataRoutes.js
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const { spawn } = require('child_process');
 
-// This endpoint expects query parameters lat and lon
 router.get('/fetch-data', async (req, res) => {
   const { lat, lon } = req.query;
 
@@ -13,17 +11,17 @@ router.get('/fetch-data', async (req, res) => {
   }
 
   try {
-    // 1. Fetch Elevation from Open-Elevation API
+    // 1. Fetch Elevation
     const elevationResp = await axios.get('https://api.open-elevation.com/api/v1/lookup', {
       params: { locations: `${lat},${lon}` },
     });
     const elevation = elevationResp.data.results[0].elevation;
     console.log('Elevation:', elevation);
 
-    // 2. Fetch weather data (Temperature, Humidity, Rainfall) from NASA POWER API
-    const weatherResp = await axios.get('https://power.larc.nasa.gov/api/temporal/daily/point', {
+    // 2. Fetch Temperature and Rainfall (DAILY)
+    const weatherDailyResp = await axios.get('https://power.larc.nasa.gov/api/temporal/daily/point', {
       params: {
-        parameters: 'T2M,RH2M,PRECTOTCORR',  // RH (humidity) added back here
+        parameters: 'T2M,PRECTOTCORR',
         community: 'RE',
         longitude: lon,
         latitude: lat,
@@ -33,15 +31,28 @@ router.get('/fetch-data', async (req, res) => {
       },
     });
 
-    const weatherData = weatherResp.data.properties.parameter;
-    const temperature = weatherData.T2M ? weatherData.T2M[Object.keys(weatherData.T2M)[0]] : null;
-    const humidity = weatherData.RH ? weatherData.RH[Object.keys(weatherData.RH)[0]] : null;
-    const rainfall = weatherData.PRECTOTCORR ? weatherData.PRECTOTCORR[Object.keys(weatherData.PRECTOTCORR)[0]] : null;
+    const weatherDaily = weatherDailyResp.data.properties.parameter;
+    const temperature = weatherDaily.T2M ? weatherDaily.T2M[Object.keys(weatherDaily.T2M)[0]] : null;
+    const rainfall = weatherDaily.PRECTOTCORR ? weatherDaily.PRECTOTCORR[Object.keys(weatherDaily.PRECTOTCORR)[0]] : null;
+
+    // 3. Fetch Humidity (MONTHLY)
+    const weatherMonthlyResp = await axios.get('https://power.larc.nasa.gov/api/temporal/climatology/point', {
+      params: {
+        parameters: 'RH2M', // Note: monthly climatology uses RH2M, not RH
+        community: 'RE',
+        longitude: lon,
+        latitude: lat,
+        format: 'JSON',
+      },
+    });
+
+    const rhData = weatherMonthlyResp.data.properties.parameter.RH2M;
+    const humidity = rhData && rhData['1'] ? rhData['1'] : null; // January
+
     console.log('Weather:', { temperature, humidity, rainfall });
 
-    // 3. Fetch soil parameters from ISRIC SoilGrids API
-    const soilURL = `https://rest.isric.org/soilgrids/v2.0/properties/query`;
-    const soilResp = await axios.get(soilURL, {
+    // 4. Fetch Soil Data
+    const soilResp = await axios.get('https://rest.isric.org/soilgrids/v2.0/properties/query', {
       params: {
         lon,
         lat,
@@ -62,7 +73,7 @@ router.get('/fetch-data', async (req, res) => {
     });
     console.log('Soil data:', soilData);
 
-    // Combine all fetched values
+    // Combine all data
     const combinedData = {
       Latitude: lat,
       Longitude: lon,
@@ -73,8 +84,8 @@ router.get('/fetch-data', async (req, res) => {
       ...soilData,
     };
 
-    // 4. Call Python script to predict N, P, K values.
-    const pyProcess = spawn('python', [
+    // 5. Call Python prediction script
+    const pyProcess = spawn('python3', [ // Use 'python3' instead of 'python' to avoid ENOENT
       './python/predict.py',
       temperature,
       humidity,
@@ -100,6 +111,13 @@ router.get('/fetch-data', async (req, res) => {
       }
       return res.json({ data: combinedData, prediction });
     });
+
+    // Handle Python spawn errors
+    pyProcess.on('error', (err) => {
+      console.error('Failed to start Python script:', err);
+      res.status(500).json({ error: 'Python execution error' });
+    });
+
   } catch (error) {
     console.error('Error in /fetch-data:', error.response?.data || error.message);
     res.status(500).json({ error: 'Internal server error' });
