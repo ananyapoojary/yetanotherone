@@ -66,14 +66,15 @@ const weatherDailyResp = await axios.get('https://power.larc.nasa.gov/api/tempor
 
     // Combine all data
     const combinedData = {
-      Latitude: lat,
-      Longitude: lon,
-      Elevation: elevation,
-      Temperature: temperature,
-      Humidity: humidity,
-      Rainfall: rainfall,
+      latitude: lat,
+      longitude: lon,
+      elevation,
+      temperature,
+      humidity,
+      rainfall,
       ...soilData,
     };
+    
 
     // 5. Call Python prediction script
     const pyProcess = spawn('python3', [ // Use 'python3' instead of 'python' to avoid ENOENT
