@@ -8,18 +8,32 @@ import DataDisplay from './components/DataDisplay';
 function App() {
   const [data, setData] = useState(null);
   const [prediction, setPrediction] = useState(null);
-  const [selectedPosition, setSelectedPosition] = useState(null); // 👈 lifted state
+  const [selectedPosition, setSelectedPosition] = useState(null);
+  const [locationName, setLocationName] = useState('');
 
   const handleLocationSelect = async ({ lat, lng }) => {
-    setSelectedPosition([lat, lng]); // 👈 update marker
+    setSelectedPosition([lat, lng]);
+
     try {
+      // Fetch address using Nominatim
+      const geoRes = await axios.get(`https://nominatim.openstreetmap.org/reverse`, {
+        params: {
+          lat,
+          lon: lng,
+          format: 'json',
+        },
+      });
+
+      setLocationName(geoRes.data.display_name || 'Unknown location');
+
       const response = await axios.get(`http://localhost:5000/api/fetch-data`, {
         params: { lat, lon: lng },
       });
+
       setData(response.data.data);
       setPrediction(response.data.prediction);
     } catch (error) {
-      console.error('Error fetching data', error);
+      console.error('Error fetching data or location name', error);
     }
   };
 
@@ -30,6 +44,7 @@ function App() {
       <MapComponent
         onLocationSelect={handleLocationSelect}
         selectedPosition={selectedPosition}
+        locationName={locationName}
       />
       <DataDisplay data={data} prediction={prediction} />
     </div>

@@ -1,0 +1,50 @@
+.animated-marker {
+    animation: bounce 0.6s ease-out;
+  }
+  
+  @keyframes bounce {
+    0% {
+      transform: scale(0.3) translateY(-100px);
+      opacity: 0;
+    }
+    60% {
+      transform: scale(1.2) translateY(10px);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1) translateY(0);
+    }
+  }
+  
+  .leaflet-popup-content-wrapper.custom-popup {
+    background: #fef3c7;
+    border-radius: 10px;
+    padding: 8px 12px;
+    color: #92400e;
+    font-weight: 500;
+    font-size: 0.95rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  }
+  
+  .leaflet-popup-tip {
+    background: #fde68a;
+  }
+  /* Simple bounce animation */
+.animated-marker {
+    animation: bounce 1s infinite;
+  }
+  
+  @keyframes bounce {
+    0%   { transform: translateY(0); }
+    50%  { transform: translateY(-10px); }
+    100% { transform: translateY(0); }
+  }
+  
+  /* Optional: styling the popup */
+  .custom-popup {
+    font-family: Arial, sans-serif;
+    font-size: 0.9rem;
+    color: #333;
+  }
+  
+  
