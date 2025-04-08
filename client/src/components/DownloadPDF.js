@@ -14,6 +14,11 @@ const DownloadPDF = ({ data, prediction, selectedPosition, addressRef, mapRef })
     doc.text('Soil Parameter & Prediction Report', margin, yOffset);
     yOffset += 12;
 
+    // Timestamp
+    const timestamp = new Date().toLocaleString();
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${timestamp}`, 210 - margin, yOffset - 6, { align: 'right' });
+
     // Address
     if (addressRef?.current?.innerText) {
       const address = addressRef.current.innerText.replace(/[^\x00-\x7F]/g, ''); // remove non-ASCII
@@ -58,7 +63,7 @@ const DownloadPDF = ({ data, prediction, selectedPosition, addressRef, mapRef })
       const rows = Object.entries(data).map(([key, value]) => {
         const label = formatLabel(key);
         const numeric = parseFloat(value);
-        const val = isNaN(numeric) ? value : numeric.toFixed(2);
+        const val = isNaN(numeric) ? value : normalizeValue(key, numeric).toFixed(2);
         const unit = getUnit(key);
         return [label, `${val} ${unit}`];
       });
@@ -105,23 +110,24 @@ const DownloadPDF = ({ data, prediction, selectedPosition, addressRef, mapRef })
       });
     }
 
-    doc.save('soil_report.pdf');
+    const fileName = `soil_report_${Date.now()}.pdf`;
+    doc.save(fileName);
   };
 
   const normalizeValue = (key, value) => {
     const scale = {
-      bdod: 100,       // Bulk Density: divide by 100
-      cec: 10,         // Cation Exchange Capacity: divide by 10
-      cfvo: 10,        // Coarse Fragments: divide by 10
-      clay: 1,         // Already percentage
-      nitrogen: 100,   // Total Nitrogen: divide by 100
-      phh2o: 10,       // pH: divide by 10
-      sand: 1,
-      silt: 1,
-      soc: 10,         // Organic Carbon: divide by 10
-      ocd: 10,         // Organic Carbon Density: divide by 10
-      ocs: 10,         // Organic Carbon Stock: divide by 10
-      wv0010: 1000,    // Water retention: divide by 1000
+      bdod: 100,
+      cec: 10,
+      cfvo: 10,
+      clay: 10,
+      nitrogen: 100,
+      phh2o: 10,
+      sand: 10,
+      silt: 10,
+      soc: 10,
+      ocd: 10,
+      ocs: 10,
+      wv0010: 1000,
       wv0033: 1000,
       wv1500: 1000,
       humidity: 1,
@@ -129,11 +135,10 @@ const DownloadPDF = ({ data, prediction, selectedPosition, addressRef, mapRef })
       rainfall: 1,
       elevation: 1,
     };
-  
+
     const factor = scale[key.toLowerCase()] || 1;
     return value / factor;
   };
-  
 
   const formatLabel = (key) =>
     ({
@@ -161,8 +166,6 @@ const DownloadPDF = ({ data, prediction, selectedPosition, addressRef, mapRef })
 
   const getUnit = (key) =>
     ({
-      latitude: '',
-      longitude: '',
       bdod: 'kg/dm³',
       cec: 'cmol(c)/kg',
       cfvo: 'vol%',
