@@ -53,21 +53,11 @@ function App() {
           onLocationSelect={handleLocationSelect}
           selectedPosition={selectedPosition}
           locationName={locationName}
-          addressRef={addressRef}
         />
       </div>
 
-      {/* Address below map */}
-      <div
-        ref={addressRef}
-        style={{
-          marginTop: '1rem',
-          fontSize: '1.1rem',
-          color: '#374151',
-          fontStyle: 'italic',
-          textAlign: 'center',
-        }}
-      >
+      {/* Hidden address for PDF only */}
+      <div ref={addressRef} style={{ display: 'none' }}>
         {locationName}
       </div>
 
