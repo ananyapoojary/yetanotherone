@@ -1,11 +1,7 @@
 import React from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import 'jspdf-autotable'; 
-// import autoTable from 'jspdf-autotable';
-
-// // Register autoTable plugin
-// autoTable(jsPDF);
+import 'jspdf-autotable';
 
 const DownloadPDF = ({ data, prediction, selectedPosition, addressRef, mapRef }) => {
   const handleDownload = async () => {
@@ -15,13 +11,13 @@ const DownloadPDF = ({ data, prediction, selectedPosition, addressRef, mapRef })
 
     // Title
     doc.setFontSize(18);
-    doc.text('🌾 Soil Parameter & Prediction Report', margin, yOffset);
+    doc.text('Soil Parameter & Prediction Report', margin, yOffset);
     yOffset += 12;
 
     // Address
     if (addressRef?.current?.innerText) {
-      const address = addressRef.current.innerText;
-      const addressLines = doc.splitTextToSize(`📍 Location: ${address}`, 180);
+      const address = addressRef.current.innerText.replace(/[^\x00-\x7F]/g, ''); // remove non-ASCII
+      const addressLines = doc.splitTextToSize(`Location: ${address}`, 180);
       doc.setFontSize(12);
       doc.text(addressLines, margin, yOffset);
       yOffset += addressLines.length * 6 + 4;
@@ -30,28 +26,39 @@ const DownloadPDF = ({ data, prediction, selectedPosition, addressRef, mapRef })
     // Coordinates
     if (selectedPosition) {
       const [lat, lng] = selectedPosition;
-      doc.setFontSize(12);
-      doc.text(`🌐 Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`, margin, yOffset);
+      doc.text(`Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`, margin, yOffset);
       yOffset += 8;
     }
 
     // Map Snapshot
     if (mapRef?.current) {
-      const canvas = await html2canvas(mapRef.current);
-      const imgData = canvas.toDataURL('image/png');
-      doc.addImage(imgData, 'PNG', margin, yOffset, 180, 80);
-      yOffset += 90;
+      try {
+        const canvas = await html2canvas(mapRef.current, {
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          scale: 2,
+        });
+        const imgData = canvas.toDataURL('image/png');
+        doc.addImage(imgData, 'PNG', margin, yOffset, 180, 80);
+        yOffset += 90;
+      } catch (err) {
+        console.error('Map snapshot failed:', err);
+        doc.text('⚠️ Failed to capture map snapshot', margin, yOffset);
+        yOffset += 10;
+      }
     }
 
     // Fetched Data Table
     if (data) {
       doc.setFontSize(14);
-      doc.text('🧪 Environmental & Soil Data:', margin, yOffset);
+      doc.text('Environmental & Soil Data:', margin, yOffset);
       yOffset += 6;
 
       const rows = Object.entries(data).map(([key, value]) => {
         const label = formatLabel(key);
-        const val = typeof value === 'number' ? value.toFixed(2) : value;
+        const numeric = parseFloat(value);
+        const val = isNaN(numeric) ? value : numeric.toFixed(2);
         const unit = getUnit(key);
         return [label, `${val} ${unit}`];
       });
@@ -75,13 +82,14 @@ const DownloadPDF = ({ data, prediction, selectedPosition, addressRef, mapRef })
     // Prediction Table
     if (prediction && !prediction.error) {
       doc.setFontSize(14);
-      doc.text('🌱 Predicted NPK Values:', margin, yOffset);
+      doc.text('Predicted NPK Values:', margin, yOffset);
       yOffset += 6;
 
-      const predRows = Object.entries(prediction).map(([key, val]) => [
-        key.toUpperCase(),
-        `${val.toFixed(2)} ratio`,
-      ]);
+      const predRows = Object.entries(prediction).map(([key, val]) => {
+        const label = key.toUpperCase();
+        const value = typeof val === 'number' ? val.toFixed(2) : val;
+        return [label, `${value} ratio`];
+      });
 
       doc.autoTable({
         head: [['Nutrient', 'Value']],
@@ -100,8 +108,37 @@ const DownloadPDF = ({ data, prediction, selectedPosition, addressRef, mapRef })
     doc.save('soil_report.pdf');
   };
 
+  const normalizeValue = (key, value) => {
+    const scale = {
+      bdod: 100,       // Bulk Density: divide by 100
+      cec: 10,         // Cation Exchange Capacity: divide by 10
+      cfvo: 10,        // Coarse Fragments: divide by 10
+      clay: 1,         // Already percentage
+      nitrogen: 100,   // Total Nitrogen: divide by 100
+      phh2o: 10,       // pH: divide by 10
+      sand: 1,
+      silt: 1,
+      soc: 10,         // Organic Carbon: divide by 10
+      ocd: 10,         // Organic Carbon Density: divide by 10
+      ocs: 10,         // Organic Carbon Stock: divide by 10
+      wv0010: 1000,    // Water retention: divide by 1000
+      wv0033: 1000,
+      wv1500: 1000,
+      humidity: 1,
+      temperature: 1,
+      rainfall: 1,
+      elevation: 1,
+    };
+  
+    const factor = scale[key.toLowerCase()] || 1;
+    return value / factor;
+  };
+  
+
   const formatLabel = (key) =>
     ({
+      latitude: 'LATITUDE',
+      longitude: 'LONGITUDE',
       bdod: 'Bulk Density',
       cec: 'Cation Exchange Capacity',
       cfvo: 'Coarse Fragments Volume',
@@ -120,10 +157,12 @@ const DownloadPDF = ({ data, prediction, selectedPosition, addressRef, mapRef })
       temperature: 'Temperature @ 2m',
       rainfall: 'Rainfall',
       elevation: 'Elevation',
-    }[key] || key.toUpperCase());
+    }[key.toLowerCase()] || key.toUpperCase());
 
   const getUnit = (key) =>
     ({
+      latitude: '',
+      longitude: '',
       bdod: 'kg/dm³',
       cec: 'cmol(c)/kg',
       cfvo: 'vol%',
@@ -142,7 +181,7 @@ const DownloadPDF = ({ data, prediction, selectedPosition, addressRef, mapRef })
       temperature: '°C',
       rainfall: 'mm',
       elevation: 'm',
-    }[key] || '');
+    }[key.toLowerCase()] || '');
 
   return (
     <button onClick={handleDownload} style={styles.button}>
