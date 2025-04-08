@@ -33,6 +33,7 @@ const MapAutoFocus = ({ position }) => {
   return null;
 };
 
+
 const MapComponent = ({ onLocationSelect, selectedPosition, locationName }) => {
   return (
     <div style={{ marginBottom: '1rem' }}>
