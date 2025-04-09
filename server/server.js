@@ -11,5 +11,6 @@ app.use(express.json());
 
 app.use('/api', dataRoutes);
 
-app.listen(5000, '0.0.0.0', () => console.log("Server running"))
-
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
