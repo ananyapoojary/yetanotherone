@@ -11,7 +11,8 @@ function App() {
   const [prediction, setPrediction] = useState(null);
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [locationName, setLocationName] = useState('');
+  const [localAddress, setLocalAddress] = useState('');
+  const [englishAddress, setEnglishAddress] = useState('');
 
   const addressRef = useRef(null);
   const mapRef = useRef(null);
@@ -21,21 +22,28 @@ function App() {
     setIsLoading(true);
 
     try {
-      const geoRes = await axios.get(`https://nominatim.openstreetmap.org/reverse`, {
-        params: {
-          lat,
-          lon: lng,
-          format: 'json',
-        },
+      // 1. Get local address (default)
+      const localRes = await axios.get('https://nominatim.openstreetmap.org/reverse', {
+        params: { lat, lon: lng, format: 'json' },
       });
-      const location = geoRes.data.display_name || 'Unknown location';
-      setLocationName(location);
+      const localName = localRes.data.display_name || 'Unknown location';
+      setLocalAddress(localName);
 
+      // 2. Get English address
+      const englishRes = await axios.get('https://nominatim.openstreetmap.org/reverse', {
+        params: { lat, lon: lng, format: 'json' },
+        headers: { 'Accept-Language': 'en' },
+      });
+      const englishName = englishRes.data.display_name || 'Unknown location';
+      setEnglishAddress(englishName);
+
+      // 3. Set the English address for PDF export
       if (addressRef.current) {
-        addressRef.current.innerText = location;
+        addressRef.current.innerText = englishName;
       }
 
-      const response = await axios.get(`http://localhost:5000/api/fetch-data`, {
+      // 4. Fetch environmental + soil + prediction data
+      const response = await axios.get('http://localhost:5000/api/fetch-data', {
         params: { lat, lon: lng },
       });
 
@@ -54,23 +62,33 @@ function App() {
 
       <SearchBar onSearch={handleLocationSelect} />
 
-      <div ref={mapRef} style={{ marginTop: '1rem', border: '2px solid #e5e7eb', borderRadius: '8px' }}>
+      <div
+        ref={mapRef}
+        style={{ marginTop: '1rem', border: '2px solid #e5e7eb', borderRadius: '8px' }}
+      >
         <MapComponent
           onLocationSelect={handleLocationSelect}
           selectedPosition={selectedPosition}
-          locationName={locationName}
+          locationName={englishAddress}
         />
       </div>
 
-      {/* Hidden Address for PDF only */}
-      <div
-        ref={addressRef}
-        style={{ display: 'none' }}
-      >
-        {locationName}
+      {/* Show both addresses below map (optional) */}
+      {(localAddress || englishAddress) && (
+  <div style={{ marginTop: '1rem', padding: '0.5rem', background: '#f3f4f6', borderRadius: '6px' }}>
+    <p><strong>📍 Location:</strong> {localAddress}</p>
+    {localAddress !== englishAddress && (
+      <p><strong>🌐 English:</strong> {englishAddress}</p>
+    )}
+  </div>
+)}
+
+
+      {/* Hidden English address for PDF */}
+      <div ref={addressRef} style={{ display: 'none' }}>
+        {englishAddress}
       </div>
 
-      {/* Loader */}
       {isLoading ? (
         <div className="loader-container">
           <div className="loader"></div>

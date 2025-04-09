@@ -54,11 +54,11 @@ const MapComponent = ({ onLocationSelect, selectedPosition, locationName }) => {
           </>
         )}
       </MapContainer>
-      {locationName && (
+      {/* {locationName && (
         <p style={{ marginTop: '0.75rem', textAlign: 'center', fontStyle: 'italic', color: '#4b5563' }}>
           📍 <strong>Location:</strong> {locationName}
         </p>
-      )}
+      )} */}
     </div>
   );
 };

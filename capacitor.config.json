@@ -1,0 +1,6 @@
+{
+  "appId": "com.ananya.npkpredictor",
+  "appName": "npk predictor",
+  "webDir": "client/build",  
+  "bundledWebRuntime": false
+}
